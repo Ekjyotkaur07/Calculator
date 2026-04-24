@@ -1,13 +1,15 @@
 import streamlit as st
 import math
+
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="Scientific Calculator",
     page_icon="🧮",
     layout="centered"
 )
+
+# ---------------- CSS ----------------
 if "css_loaded" not in st.session_state:
-    st.markdown("""<style> ... </style>""", unsafe_allow_html=True)
-    st.session_state.css_loaded = True
     st.markdown("""
     <style>
     body {
@@ -15,27 +17,6 @@ if "css_loaded" not in st.session_state:
         color: white;
     }
 
-    /* Display styling */
-    .display-box {
-        background-color: #000;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: right;
-        font-family: monospace;
-        margin-bottom: 10px;
-    }
-
-    .expr {
-        font-size: 18px;
-        color: #aaa;
-    }
-
-    .result {
-        font-size: 32px;
-        color: #00ffcc;
-    }
-
-    /* Buttons */
     button {
         width: 100%;
         height: 50px;
@@ -49,130 +30,159 @@ if "css_loaded" not in st.session_state:
     button:hover {
         background-color: #374151;
     }
-    
-    }
     </style>
     """, unsafe_allow_html=True)
-st.title("SCIENTIFIC CALCULATOR")
 
+    st.session_state.css_loaded = True
+
+# ---------------- TITLE ----------------
+st.title("SCIENTIFIC CALCULATOR")
 
 # ---------------- SESSION STATE ----------------
 st.session_state.setdefault("expr", "")
 st.session_state.setdefault("result", "")
 st.session_state.setdefault("history", [])
 st.session_state.setdefault("degree_mod", True)
-
-
+st.session_state.setdefault("show_sci", False)
 
 # ---------------- FUNCTIONS ----------------
 def to_rad(x):
     return math.radians(x) if st.session_state.degree_mod else x
+
 def sin(x):
     return math.sin(to_rad(x))
+
 def cos(x):
     return math.cos(to_rad(x))
+
 def tan(x):
-    try:
-        return math.tan(to_rad(x))
-    except:
-        return "Error"
+    return math.tan(to_rad(x))
+
+# ---------------- CALCULATE ----------------
 def calculate():
     try:
-        result = eval(st.session_state.expr, {
+        expr = st.session_state.expr.replace("x", "*")
+
+        result = eval(expr, {
             "__builtins__": None,
             "sin": sin,
             "cos": cos,
             "tan": tan,
             "sqrt": math.sqrt,
             "log": math.log10,
+            "ln": math.log,
+            "exp": math.exp,
             "pi": math.pi,
             "e": math.e
         })
+
         st.session_state.result = str(result)
+
         st.session_state.history.insert(
             0, f"{st.session_state.expr} = {result}"
         )
+
     except:
         st.session_state.result = "Error"
 
-def update_expr(val):
-    if st.session_state.expr == "Error":
-        st.session_state.expr = ""
-    if st.session_state.result:
-        st.session_state.expr = ""
-        st.session_state.result = ""
-    st.session_state.expr += val
+# ---------------- MODE TOGGLE ----------------
+mode = "DEG" if st.session_state.degree_mod else "RAD"
+if st.button(f"Mode: {mode}"):
+    st.session_state.degree_mod = not st.session_state.degree_mod
 
-#------------TOGGLE----------------------
-mode ="DEG" if st.session_state.degree_mod else "RAD"
-if st.button(f"Mode: {mode}",key="mode"):
-    st.session_state.degree_mod=not st.session_state.degree_mod
+# ---------------- SCIENTIFIC MODE ----------------
+if st.button("⚪ Scientific Mode"):
+    st.session_state.show_sci = not st.session_state.show_sci
 
-#--------KEYOBARD INPUT-------------------
-user_input = st.text_input(
-    "⌨️ Type expression",
-    placeholder="e.g. sin(30) + 5*2",
-    key="keyboard_input"
+# ---------------- DISPLAY (FIXED — NO LAG) ----------------
+st.markdown(
+    f"""
+    <div style="text-align:right; font-size:40px; color:#00ffcc; padding:10px;">
+        {st.session_state.expr if st.session_state.expr else "0"}
+    </div>
+    <div style="text-align:right; font-size:28px; color:#ffffff;">
+        {st.session_state.result}
+    </div>
+    """,
+    unsafe_allow_html=True
 )
-#------------DISPLAY------------
-st.markdown(f"""
-<div class="display-box">
-    <div class="expr">{st.session_state.expr}</div>
-    <div class="result">{st.session_state.result}</div>
-</div>
-""", unsafe_allow_html=True)
 
-#-----SCIENTIFIC FUNCTIOS---------------
-sci_buttons = ["sin(", "cos(", "tan(", "sqrt(", "log(", "pi", "e"]
-cols = st.columns(len(sci_buttons))
+# ---------------- SCIENTIFIC BUTTONS ----------------
+if st.session_state.show_sci:
 
-for i, (col, btn) in enumerate(zip(cols, sci_buttons)):
-    with col:
-        if st.button(btn, key=f"sci_{i}"):
-            update_expr(btn)
+    sci_buttons = [
+        ["sin(", "cos(", "tan(", "log(", "ln("],
+        ["sqrt(", "(", ")", "pi", "e"]
+    ]
 
-#-----------------BUTTONS-------------
+    for i, row in enumerate(sci_buttons):
+        cols = st.columns(len(row))
+
+        for j, (col, btn) in enumerate(zip(cols, row)):
+            with col:
+                if st.button(btn, key=f"sci_{i}_{j}"):
+
+                    st.session_state.expr += btn
+                    st.rerun()   
+
+# ---------------- MAIN BUTTON GRID ----------------
 st.markdown("---")
 
 buttons = [
-    ["7", "8", "9", "÷"],
-    ["4", "5", "6", "x"],
-    ["1", "2", "3", "-"],
-    ["C", "0", "⌫", "="],
+    ["C", "⌫", "÷", "x"],
+    ["7", "8", "9", "-"],
+    ["4", "5", "6", "+"],
+    ["1", "2", "3", "="],
+    ["0", "00", ".", "^"],
+    ["exp", "(", ")", ""]
 ]
 
+# ---------------- BUTTON LOGIC ----------------
 for i, row in enumerate(buttons):
-    cols = st.columns(4)
+    cols = st.columns(len(row))
+
     for j, (col, btn) in enumerate(zip(cols, row)):
         with col:
             if st.button(btn, key=f"btn_{i}_{j}", use_container_width=True):
 
-                    if btn == "=":
-                        calculate()
+                if btn == "=":
+                    calculate()
 
-                    elif btn == "x":
-                        update_expr("*")
+                elif btn == "C":
+                    st.session_state.expr = ""
+                    st.session_state.result = ""
 
-                    elif btn == "÷":
-                        update_expr("/")
+                elif btn == "⌫":
+                    st.session_state.expr = st.session_state.expr[:-1] if st.session_state.expr else ""
 
-                    elif btn == "C":   
-                        st.session_state.expr = ""
-                        st.session_state.result = ""
+                elif btn == "x":
+                    st.session_state.expr += "*"
 
-                    elif btn == "⌫":   
-                        st.session_state.expr = st.session_state.expr[:-1]
+                elif btn == "÷":
+                    st.session_state.expr += "/"
 
-                    else:
-                        update_expr(btn)
+                elif btn == "^":
+                    st.session_state.expr += "**"
 
+                elif btn == "exp":
+                    st.session_state.expr += "exp("
 
+                elif btn == "":
+                    pass
+
+                else:
+                    st.session_state.expr += btn
+
+                st.rerun()   
+
+# ---------------- HISTORY ----------------
 st.markdown("---")
-#-----HISTORY-------------
+
 if st.session_state.history:
     st.subheader("History")
+
     for item in st.session_state.history[:5]:
         st.markdown(f"`{item}`")
-    if st.button("Clear History",key="clear_history"):
-        st.session_state.history=[]
- 
+
+    if st.button("Clear History"):
+        st.session_state.history = []
