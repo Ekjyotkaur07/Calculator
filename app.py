@@ -156,11 +156,11 @@ for i, row in enumerate(buttons):
                     elif btn == "÷":
                         update_expr("/")
 
-                    elif btn == "C":   # ✅ ADD THIS
+                    elif btn == "C":   
                         st.session_state.expr = ""
                         st.session_state.result = ""
 
-                    elif btn == "⌫":   # ✅ ADD THIS
+                    elif btn == "⌫":   
                         st.session_state.expr = st.session_state.expr[:-1]
 
                     else:
